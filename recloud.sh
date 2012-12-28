@@ -1,4 +1,16 @@
 #!/bin/bash
+# get options first
+yes_opt='n'
+while getopts "y" flag; do
+  case $flag in
+    y)
+      yes_opt='y'
+    ;;
+    *) echo "Only Support optinons: -y"
+    ;;
+  esac
+done
+
 __dirname=$(dirname `readlink -f $0`)
 source $__dirname/lib/env.sh
 
@@ -16,7 +28,7 @@ echo "imagefilename: $imagefilename"
 already_present_vmfile=`find $build_folder -type f -name *.$img_file_extension`
 if [ -n "already_present_vmfile" -a -f "$already_present_vmfile" ]; then
   echo "Found the VM file  $already_present_vmfile. Use it? (default yes)"
-  read response
+  unset response;[ $yes_opt = 'y' ] || read response
   if [ -z "$response" ]; then
     vm_imagefile=$already_present_vmfile
   else
@@ -35,7 +47,7 @@ if [ -z "$vm_imagefile" ]; then
     if [ ! -f "$build_folder/$imagefilename" ]; then
       if [ -f "$build_folder/$base_imagefilename" ]; then
         echo "Unzip the existing download $base_imagefilename ? (default yes)"
-        read response
+        unset response;[ $yes_opt = 'y' ] || read response
         if [ -n "$response" ]; then
           do_download=true
         else
@@ -51,7 +63,7 @@ if [ -z "$vm_imagefile" ]; then
       else
           echo "Could not find the downloaded VM $imagefilename"
           echo "Download from $imageurl? (default yes)"
-          read response
+          unset response;[ $yes_opt = 'y' ] || read response
           if [ -z "$response" ]; then
             do_download=true
           else
@@ -61,7 +73,7 @@ if [ -z "$vm_imagefile" ]; then
       fi
     else
       echo "$build_folder/$imagefilename exists, skip download and reuse? (default yes)"
-      read response
+      unset response;[ $yes_opt = 'y' ] || read response
       if [ -n "$response" ]; then
         echo "Override and download again"
         do_download=true
@@ -81,7 +93,7 @@ if [ -z "$vm_imagefile" ]; then
     already_present_vmfile=`find $build_folder -type f -name *.$img_file_extension`
     if [ -n "already_present_vmfile" -a -f "$already_present_vmfile" ]; then
       echo "Found the VM file  $already_present_vmfile. Use it? (default yes)"
-      read response
+      unset response;[ $yes_opt = 'y' ] || read response
       if [ -z "$response" ]; then
         vm_imagefile=$already_present_vmfile
       else
@@ -118,7 +130,7 @@ if [ -d $imagedir ]; then
   if [ -n "$mounted" ]; then
     echo "$imagedir is already mounted: $mounted"
     echo "Umount (default yes)?"
-    read response
+    unset response;[ $yes_opt = 'y' ] || read response
     if  [ -z "$response" ]; then
       sudo umount $imagedir
     else
@@ -161,7 +173,7 @@ sudo $__dirname/lib/recloud-mounted-img.sh $imagedir
 if [ "$?" != "0" ]; then
   echo "The script to manipulate the vm exitted with status $?"
   echo "Stop now? (default yes)"
-  read response
+  unset response;[ $yes_opt = 'y' ] || read response
   if [ -z "$response" ]; then
     echo "Bye"
     exit 1
@@ -181,7 +193,7 @@ fi
 dev=/dev/xvdi
 if [ ! -e "$dev" ]; then
   echo "no mounted ebs volume create a new one with size ${size}G ? (default yes)"
-  read response
+  unset response;[ $yes_opt = 'y' ] || read response
   if [ -z "$response" ]; then
     volumeid=$(ec2-create-volume --size $size --availability-zone $zone | cut -f2)
     echo "created EBS volumentid $volumeid"
@@ -221,7 +233,7 @@ else
   fi
   echo "Got the volumeid $volumeid"
   echo "Format anew (default yes)"
-  read response
+  unset response;[ $yes_opt = 'y' ] || read response
   if [ -z "$response" ]; then
     do_format=true
   fi
@@ -242,7 +254,7 @@ if [ -d "$ebsimagedir" ]; then
   if [ -n "$mounted" ]; then
     echo "$ebsimagedir is already mounted: $mounted"
     echo "Umount (default yes)?"
-    read response
+    unset response;[ $yes_opt = 'y' ] || read response
     if  [ -z "$response" ]; then
       sudo umount $ebsimagedir
     else
@@ -263,14 +275,14 @@ echo "$ebsimagedir contains already:"
 ls $ebsimagedir
 
 echo "Copying the contents of $imagedir into $ebsimagedir (default yes)?"
-read response
+unset response;[ $yes_opt = 'y' ] || read response
 if [ -z "$response" ]; then
   sudo tar -cSf - -C $imagedir . | sudo tar xvf - -C $ebsimagedir
 else
   echo "Continuing with the content of $ebsimagedir then"
 fi
 echo "Everything good? We are about to unmount everything. (default yes go ahead)?"
-read response
+unset response;[ $yes_opt = 'y' ] || read response
 if [ -n "$response" ]; then
   echo "Bye for now"
   exit 0
@@ -283,7 +295,7 @@ ec2-detach-volume "$volumeid"
 while ec2-describe-volumes "$volumeid" | grep -q ATTACHMENT
   do sleep 3; done
 echo "Take a snapshot of the ebs volume $volumeid ? (default yes)"
-read response
+unset response;[ $yes_opt = 'y' ] || read response
 if [ -z "$response" ]; then
   snapshotid=$(ec2-create-snapshot --description "creating a new ami from $imagefilename" "$volumeid" | cut -f2)
   if [ -z "$snapshotid" ]; then
@@ -326,7 +338,7 @@ if [ -z "$completed" ]; then
   ec2-describe-snapshots "$snapshotid"
   echo "Please debug this or wait until the snapshot is completed then continue or stop."
   echo "Stop now ? (default yes)"
-  read response
+  unset response;[ $yes_opt = 'y' ] || read response
   if [ -z "$response" ]; then
     exit 1
   fi
@@ -350,7 +362,7 @@ ec2_register_cmd="ec2-register \
 echo "About to register a new ami with"
 echo "$ec2_register_cmd"
 echo "Confirm? (default yes)"
-read response
+unset response;[ $yes_opt = 'y' ] || read response
 if [ -z "$response" ]; then
   ami_registered=true
   amiid=$($ec2_register_cmd | cut -f2)
@@ -359,7 +371,7 @@ else
 fi
 
 echo "Delete the ebs volume used to create the snapshot? $volumeid (default yes)"
-read response
+unset response;[ $yes_opt = 'y' ] || read response
 if [ -z "$response" ]; then
   ec2-delete-volume "$volumeid"
 fi

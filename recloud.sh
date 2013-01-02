@@ -85,7 +85,7 @@ if [ -z "$vm_imagefile" ]; then
       if [ -n "$(echo $base_imagefilename | grep .zip)" ]; then
         #wget $imageurl
         curl -o $build_folder/$base_imagefilename $imageurl
-        unzip $build_folder/$imagefilename -d $build_folder
+        unzip $build_folder/$base_imagefilename -d $build_folder
       else
         wget -O- $imageurl | tar vxzf - -C $build_folder
       fi
